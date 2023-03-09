@@ -100,3 +100,6 @@ Notice:
 * The basis set type should be Cartesian;
 * The SCF initial guess for the density matrix is constructed from the superposition of atomic densities (SAD).  The densities for a few atoms are read automatically from the directory containing the basis set file.  These files are assumed be compatible with the basis set being used.
 
+
+# YATDFT_forMP2
+This is designed to apply YATDFT method for MP2 theory. So we added some parameters and matrices for virtual orbitals.
