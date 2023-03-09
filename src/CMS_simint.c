@@ -9,6 +9,7 @@
 #include "CMS_config.h"
 #include "CMS_basis.h"
 #include "CMS_simint.h"
+#include "stdint.h"
 
 #define NCART(am) (((am)+1)*((am)+2)/2)
 

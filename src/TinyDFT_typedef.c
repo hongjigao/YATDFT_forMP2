@@ -61,6 +61,7 @@ void TinyDFT_init(TinyDFT_p *TinyDFT_, char *bas_fname, char *xyz_fname)
     TinyDFT->prim_scrtol   = 1e-14;
     TinyDFT->shell_scrtol2 = 1e-11 * 1e-11;
     TinyDFT->E_nuc_rep     = CMS_getNucEnergy(TinyDFT->basis);
+    TinyDFT->n_vir         = TinyDFT->nbf-TinyDFT->n_occ;
     printf("Job information:\n");
     printf("    basis set       = %s\n", TinyDFT->bas_name);
     printf("    molecule        = %s\n", TinyDFT->mol_name);
@@ -68,12 +69,14 @@ void TinyDFT_init(TinyDFT_p *TinyDFT_, char *bas_fname, char *xyz_fname)
     printf("    shells          = %d\n", TinyDFT->nshell);
     printf("    basis functions = %d\n", TinyDFT->nbf);
     printf("    occupied orbits = %d\n", TinyDFT->n_occ);
+    printf("    virtual orbits  = %d\n", TinyDFT->n_vir);
     printf("    charge          = %d\n", TinyDFT->charge);
     printf("    electrons       = %d\n", TinyDFT->electron);
     int nthread      = TinyDFT->nthread;
     int nshell       = TinyDFT->nshell;
     int nbf          = TinyDFT->nbf;
     int n_occ        = TinyDFT->n_occ;
+    int n_vir        = TinyDFT->n_vir;
     int num_total_sp = TinyDFT->num_total_sp;
     int num_valid_sp = TinyDFT->num_valid_sp;
     
@@ -224,7 +227,10 @@ void TinyDFT_init(TinyDFT_p *TinyDFT_, char *bas_fname, char *xyz_fname)
     TinyDFT->XC_mat    = (double*) malloc_aligned(mat_msize, 64);
     TinyDFT->F_mat     = (double*) malloc_aligned(mat_msize, 64);
     TinyDFT->D_mat     = (double*) malloc_aligned(mat_msize, 64);
+    TinyDFT->DC_mat    = (double*) malloc_aligned(mat_msize, 64);
     TinyDFT->Cocc_mat  = (double*) malloc_aligned(DBL_MSIZE * n_occ * nbf, 64);
+    TinyDFT->Cvir_mat  = (double*) malloc_aligned(DBL_MSIZE * n_vir * nbf, 64);
+    TinyDFT->orbitenergy_array=(double*) malloc_aligned(DBL_MSIZE * nbf, 64);
     assert(TinyDFT->Hcore_mat != NULL);
     assert(TinyDFT->S_mat     != NULL);
     assert(TinyDFT->X_mat     != NULL);
@@ -233,10 +239,14 @@ void TinyDFT_init(TinyDFT_p *TinyDFT_, char *bas_fname, char *xyz_fname)
     assert(TinyDFT->XC_mat    != NULL);
     assert(TinyDFT->F_mat     != NULL);
     assert(TinyDFT->D_mat     != NULL);
+    assert(TinyDFT->DC_mat    != NULL);
     assert(TinyDFT->Cocc_mat  != NULL);
+    assert(TinyDFT->Cvir_mat  != NULL);
     TinyDFT->mem_size += (double) (8 * mat_msize);
     TinyDFT->mem_size += (double) (DBL_MSIZE * n_occ * nbf);
     memset(TinyDFT->Cocc_mat, 0, DBL_MSIZE * n_occ * nbf);
+    memset(TinyDFT->Cvir_mat, 0, DBL_MSIZE * n_vir * nbf);
+    memset(TinyDFT->orbitenergy_array, 0, DBL_MSIZE * nbf);
 
     // Tensors and matrices used only in build_JKDF will 
     // be allocated later if needed
@@ -348,10 +358,13 @@ void TinyDFT_destroy(TinyDFT_p *_TinyDFT)
     free_aligned(TinyDFT->S_mat);
     free_aligned(TinyDFT->F_mat);
     free_aligned(TinyDFT->D_mat);
+    free_aligned(TinyDFT->DC_mat);
     free_aligned(TinyDFT->J_mat);
     free_aligned(TinyDFT->K_mat);
     free_aligned(TinyDFT->X_mat);
     free_aligned(TinyDFT->Cocc_mat);
+    free_aligned(TinyDFT->Cvir_mat);
+    free_aligned(TinyDFT->orbitenergy_array);
     
     // Free Tensors and matrices used only in build_JKDF
     free(TinyDFT->mat_K_m);

@@ -106,6 +106,20 @@ static void qsort_dbl_key_int_val(double *key, int *val, int l, int r)
     if (j > l) qsort_dbl_key_int_val(key, val, l, j);
 }
 
+
+double Calcnorm( const double * mat, int siz)
+{
+    double norms=0;
+    for(int i=0;i<siz;i++)
+        for(int j=0;j<siz;j++)
+        {
+            norms=norms+mat[i*siz+j]*mat[i*siz+j];
+        }
+
+    return norms;
+}
+
+
 void TinyDFT_build_Cocc_from_Dmat_eig(TinyDFT_p TinyDFT, const double *D_mat, double *Cocc_mat)
 {
     int    nbf       = TinyDFT->nbf;
@@ -165,4 +179,159 @@ void TinyDFT_build_Dmat_eig(TinyDFT_p TinyDFT, const double *F_mat, const double
         1.0, Cocc_mat, n_occ, Cocc_mat, n_occ, 0.0, D_mat, nbf
     );
 }
+
+void TinyDFT_build_MP2info_eig(TinyDFT_p TinyDFT, const double *F_mat, const double *X_mat, double *D_mat, double *Cocc_mat, double *DC_mat, double *Cvir_mat, double *orbitenergy_array)
+{
+    int    nbf       = TinyDFT->nbf;
+    int    n_occ     = TinyDFT->n_occ;
+    int    n_vir     = TinyDFT->n_vir;
+    int    mat_size  = TinyDFT->mat_size;
+    int    *ev_idx   = TinyDFT->ev_idx;
+    double *eigval   = TinyDFT->eigval;
+    double *tmp_mat  = TinyDFT->tmp_mat;
+
+    // Notice: here F_mat is already = X^T * F * X
+    memcpy(tmp_mat, F_mat, DBL_MSIZE * mat_size);
+    
+    // Diagonalize F = C0^T * epsilon * C0, and C = X * C0 
+    // [C0, E] = eig(F1), now C0 is stored in tmp_mat
+    LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', nbf, tmp_mat, nbf, eigval);  // tmp_mat will be overwritten by eigenvectors
+    // C = X * C0, now C is stored in D_mat
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 
+        1.0, X_mat, nbf, tmp_mat, nbf, 0.0, D_mat, nbf
+    );
+    // Form the C_occ with eigenvectors corresponding to n_occ smallest eigenvalues
+    for (int i = 0; i < nbf; i++) ev_idx[i] = i;
+    qsort_dbl_key_int_val(eigval, ev_idx, 0, nbf);
+    for (int j = 0; j < n_occ; j++)
+        for (int i = 0; i < nbf; i++)
+            Cocc_mat[i * n_occ + j] = D_mat[i * nbf + ev_idx[j]];
+    // Form the C_vir with eigenvectors corresponding to n_vir largest eigenvalues
+    for (int j = n_occ; j < nbf; j++)
+        for (int i = 0; i < nbf; i++)
+            Cvir_mat[i * n_vir + j-n_occ] = D_mat[i * nbf + ev_idx[j]];
+    // Form the orbitenergy_array with the eigenvalues
+    for (int i=0; i<nbf; i++)
+    {
+        orbitenergy_array[i]=eigval[i];
+    }
+
+    // D = C_occ * C_occ^T
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasTrans, nbf, nbf, n_occ, 
+        1.0, Cocc_mat, n_occ, Cocc_mat, n_occ, 0.0, D_mat, nbf
+    );
+    // DC=C_vir * C_vir^T
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasTrans, nbf, nbf, n_vir, 
+        1.0, Cvir_mat, n_vir, Cvir_mat, n_vir, 0.0, DC_mat, nbf
+    );
+
+}
+
+void TinyDFT_MP2process(TinyDFT_p TinyDFT)
+{
+    int    nbf       = TinyDFT->nbf;
+    int    n_occ     = TinyDFT->n_occ;
+    int    n_vir     = TinyDFT->n_vir;
+    int    mat_size  = TinyDFT->mat_size;
+    int    *ev_idx   = TinyDFT->ev_idx;
+    double *eigval   = TinyDFT->eigval;
+    double *tmp_mat  = TinyDFT->tmp_mat;
+    double *D_mat    = TinyDFT->D_mat;
+    double *DC_mat    = TinyDFT->DC_mat;
+    double *S_mat    = TinyDFT->S_mat;
+    double *X_mat    = TinyDFT->X_mat;
+    double *Cocc_mat = TinyDFT->Cocc_mat;
+    double *Cvir_mat = TinyDFT->Cvir_mat;
+    double *F_mat    = TinyDFT->F_mat;
+
+    // Notice: here F_mat is already = X^T * F * X
+    memcpy(tmp_mat, F_mat, DBL_MSIZE * mat_size);
+    
+    // Diagonalize F = C0^T * epsilon * C0, and C = X * C0 
+    // [C0, E] = eig(F1), now C0 is stored in tmp_mat
+    LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', nbf, tmp_mat, nbf, eigval);  // tmp_mat will be overwritten by eigenvectors
+    // C = X * C0, now C is stored in DC_mat
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 
+        1.0, X_mat, nbf, tmp_mat, nbf, 0.0, DC_mat, nbf
+    );
+    // P=C*C^T, stored in D_mat
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasTrans, nbf, nbf, nbf, 
+        1.0, DC_mat, nbf, DC_mat, nbf, 0.0, D_mat, nbf
+    ); 
+    //Calculate P*S, stored in tmp_mat
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 
+        1.0, D_mat, nbf, S_mat, nbf, 0.0, tmp_mat, nbf
+    ); 
+    double norm;
+    norm=Calcnorm(tmp_mat,nbf);
+    printf("If the multiplication is perfect, the results below should be nbf=%d", nbf);
+    printf("The norm of P*S is %f \n",norm);
+    memcpy(tmp_mat, F_mat, DBL_MSIZE * mat_size);
+    
+    // Diagonalize F = C0^T * epsilon * C0, and C = X * C0 
+    // [C0, E] = eig(F1), now C0 is stored in tmp_mat
+    LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', nbf, tmp_mat, nbf, eigval);  // tmp_mat will be overwritten by eigenvectors
+    // C = X * C0, now C is stored in D_mat
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 
+        1.0, X_mat, nbf, tmp_mat, nbf, 0.0, D_mat, nbf
+    );
+    // Form the C_occ with eigenvectors corresponding to n_occ smallest eigenvalues
+    for (int i = 0; i < nbf; i++) ev_idx[i] = i;
+//    qsort_dbl_key_int_val(eigval, ev_idx, 0, nbf);
+    for (int j = 0; j < n_occ; j++)
+        for (int i = 0; i < nbf; i++)
+            Cocc_mat[i * n_occ + j] = D_mat[i * nbf + ev_idx[j]];
+    // Form the C_vir with eigenvectors corresponding to n_vir largest eigenvalues
+    for (int j = n_occ; j < nbf; j++)
+        for (int i = 0; i < nbf; i++)
+            Cvir_mat[i * n_vir + j-n_occ] = D_mat[i * nbf + ev_idx[j]];
+
+    // D = C_occ * C_occ^T
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasTrans, nbf, nbf, n_occ, 
+        1.0, Cocc_mat, n_occ, Cocc_mat, n_occ, 0.0, D_mat, nbf
+    );
+    // DC=C_vir * C_vir^T
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasTrans, nbf, nbf, n_vir, 
+        1.0, Cvir_mat, n_vir, Cvir_mat, n_vir, 0.0, DC_mat, nbf
+    );
+    for (int j = 0; j < nbf; j++)
+        for (int i = 0; i < nbf; i++)
+            D_mat[i * nbf + j] = D_mat[i * nbf + j]+DC_mat[i*nbf+j];
+
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 
+        1.0, D_mat, nbf, S_mat, nbf, 0.0, tmp_mat, nbf
+    ); 
+    norm=Calcnorm(tmp_mat,nbf);
+    printf("The norm of (D+DC)*S is %f \n",norm);
+    printf("--------------------------------------------------\n");
+    printf("Test whether X*S*X is I\n");
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 
+        1.0, TinyDFT->X_mat, nbf, TinyDFT->S_mat, nbf, 0.0, TinyDFT->tmp_mat, nbf);
+
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 
+        1.0, TinyDFT->tmp_mat, nbf, TinyDFT->X_mat, nbf, 0.0, TinyDFT->D_mat, nbf);
+
+    norm=Calcnorm(D_mat,nbf);
+    printf("The norm of XSX is %f\n", norm);
+    printf("--------------------------------------------------\n");
+    printf("The eigenvalues of S matrix are\n");
+    LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', nbf, S_mat, nbf, eigval);
+    for(int i=0;i<nbf;i++)
+    {
+        printf("%f ",eigval[i]);
+    }
+}
+
 

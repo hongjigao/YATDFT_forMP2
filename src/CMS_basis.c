@@ -10,6 +10,7 @@
 
 #include "CMS_config.h"
 #include "CMS_basis.h"
+#include "stdint.h"
 
 #define ELEN         50
 #define SLEN         5
