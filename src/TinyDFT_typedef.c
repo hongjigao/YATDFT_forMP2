@@ -241,7 +241,9 @@ void TinyDFT_init(TinyDFT_p *TinyDFT_, char *bas_fname, char *xyz_fname)
     assert(TinyDFT->D_mat     != NULL);
     assert(TinyDFT->DC_mat    != NULL);
     assert(TinyDFT->Cocc_mat  != NULL);
+
     assert(TinyDFT->Cvir_mat  != NULL);
+
     TinyDFT->mem_size += (double) (8 * mat_msize);
     TinyDFT->mem_size += (double) (DBL_MSIZE * n_occ * nbf);
     memset(TinyDFT->Cocc_mat, 0, DBL_MSIZE * n_occ * nbf);
