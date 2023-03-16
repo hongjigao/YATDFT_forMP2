@@ -303,8 +303,12 @@ int main(int argc, char **argv)
     TinyDFT_SCF(TinyDFT, niter, J_op, K_op);
     // Calculate Density matrix and its complimentary and factor matrices and energy array.
     TinyDFT_MP2process(TinyDFT);
-
-
+    for(int i=0;i<TinyDFT->nbf;i++)
+    {
+        printf("%f, ",TinyDFT->eigval[i]);
+    }
+    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    TinyDFT_MP2processtest(TinyDFT);
 
     // Free TinyDFT and H2P-ERI
     TinyDFT_destroy(&TinyDFT);
