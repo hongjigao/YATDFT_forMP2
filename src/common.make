@@ -4,7 +4,7 @@ LIB_SO  = libYATDFT.so
 C_SRCS  = $(wildcard *.c)
 C_OBJS  = $(C_SRCS:.c=.c.o)
 
-SIMINT_INSTALL_DIR   = /gpfs/projects/JiaoGroup/hongjigao/simint/build-avx512/install
+SIMINT_INSTALL_DIR   = /gpfs/projects/JiaoGroup/hongjigao/gccmp2test/simint/build-avx512/install
 LIBXC_INSTALL_DIR    = /home/mkurisu/Workspace/libxc/install
 OPENBLAS_INSTALL_DIR = /gpfs/software/openblas/0.3.21/
 

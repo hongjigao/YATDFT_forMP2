@@ -69,7 +69,7 @@ void TinyDFT_build_MP2info_eig(TinyDFT_p TinyDFT, const double *F_mat, const dou
 //   DC_mat  : Energy weighted density complimentary matrix, size nbf*nbf, DC_{mu,nu}=\sum_a C_{mu a}C_{nu a}e^[(E_F-E_a)*talpha]
 void TinyDFT_build_energyweightedDDC(TinyDFT_p TinyDFT, const double *Cocc_mat, const double *Cvir_mat, const double *orbitenergy_array, double *D_mat, double *DC_mat, double Fermie, double talpha);
 
-void TinyDFT_MP2process(TinyDFT_p TinyDFT);
+void TinyDFT_MP2nox(TinyDFT_p TinyDFT);
 
 //static void qsort_dbl_key_int_val(double *key, int *val, int l, int r);
 

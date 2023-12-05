@@ -176,7 +176,7 @@ void TinyDFT_build_MP2info_eig(TinyDFT_p TinyDFT, const double *F_mat,
   int nbf = TinyDFT->nbf;
   int n_occ = TinyDFT->n_occ;
   int n_vir = TinyDFT->n_vir;
-  int n_null= TinyDFT->n_null;
+//  int n_null= TinyDFT->n_null;
   int mat_size = TinyDFT->mat_size;
   int *ev_idx = TinyDFT->ev_idx;
   double *eigval = TinyDFT->eigval;
@@ -192,6 +192,7 @@ void TinyDFT_build_MP2info_eig(TinyDFT_p TinyDFT, const double *F_mat,
   // C = X * C0, now C is stored in D_mat
   cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
               X_mat, nbf, tmp_mat, nbf, 0.0, D_mat, nbf);
+  //memcpy(D_mat, tmp_mat, DBL_MSIZE * mat_size);
   // Form the C_occ with eigenvectors corresponding to n_occ smallest
   // eigenvalues
   for (int i = 0; i < nbf; i++) ev_idx[i] = i;
@@ -200,10 +201,7 @@ void TinyDFT_build_MP2info_eig(TinyDFT_p TinyDFT, const double *F_mat,
     for (int i = 0; i < nbf; i++)
       Cocc_mat[i * n_occ + j] = D_mat[i * nbf + ev_idx[j]];
   // Form the C_vir with eigenvectors corresponding to n_vir largest eigenvalues
-  for (int j = n_occ; j < n_occ+n_null; j++)
-    for (int i = 0; i < nbf; i++)
-      Cvir_mat[i * n_vir + j - n_occ] = 0;
-  for (int j = n_occ+n_null; j < nbf; j++)
+  for (int j = n_occ; j < nbf; j++)
     for (int i = 0; i < nbf; i++)
       Cvir_mat[i * n_vir + j - n_occ] = D_mat[i * nbf + ev_idx[j]];
   // Form the orbitenergy_array with the eigenvalues
@@ -223,11 +221,10 @@ void TinyDFT_build_MP2info_eig(TinyDFT_p TinyDFT, const double *F_mat,
 
 
 
-void TinyDFT_MP2process(TinyDFT_p TinyDFT) {
+void TinyDFT_MP2nox(TinyDFT_p TinyDFT) {
   int nbf = TinyDFT->nbf;
   int n_occ = TinyDFT->n_occ;
   int n_vir = TinyDFT->n_vir;
-  int n_null= TinyDFT->n_null;
   int mat_size = TinyDFT->mat_size;
   int *ev_idx = TinyDFT->ev_idx;
   double *eigval = TinyDFT->eigval;
@@ -242,7 +239,7 @@ void TinyDFT_MP2process(TinyDFT_p TinyDFT) {
 
   double norm;
 
-  printf(" %d basis functions, %d occupied orbits, %d virtual orbits (including %d rank deficient null orbits) \n",nbf,n_occ,n_vir,n_null);
+  printf(" %d basis functions, %d occupied orbits, %d virtual orbits\n",nbf,n_occ,n_vir);
   memcpy(tmp_mat, F_mat, DBL_MSIZE * mat_size);
 
   // Diagonalize F = C0^T * epsilon * C0, and C = X * C0
@@ -250,8 +247,9 @@ void TinyDFT_MP2process(TinyDFT_p TinyDFT) {
   LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', nbf, tmp_mat, nbf,
                 eigval);  // tmp_mat will be overwritten by eigenvectors
   // C = X * C0, now C is stored in D_mat
-  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-              X_mat, nbf, tmp_mat, nbf, 0.0, D_mat, nbf);
+  //cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
+  //            X_mat, nbf, tmp_mat, nbf, 0.0, D_mat, nbf);
+  memcpy(D_mat, tmp_mat, DBL_MSIZE * mat_size);
   // Form the C_occ with eigenvectors corresponding to n_occ smallest
   // eigenvalues
   for (int i = 0; i < nbf; i++) ev_idx[i] = i;
@@ -260,10 +258,7 @@ void TinyDFT_MP2process(TinyDFT_p TinyDFT) {
     for (int i = 0; i < nbf; i++)
       Cocc_mat[i * n_occ + j] = D_mat[i * nbf + ev_idx[j]];
   // Form the C_vir with eigenvectors corresponding to n_vir largest eigenvalues
-  for (int j = n_occ; j < n_occ+n_null; j++)
-    for (int i = 0; i < nbf; i++)
-      Cvir_mat[i * n_vir + j - n_occ] = 0;
-  for (int j = n_occ+n_null; j < nbf; j++)
+  for (int j = n_occ; j < nbf; j++)
     for (int i = 0; i < nbf; i++)
       Cvir_mat[i * n_vir + j - n_occ] = D_mat[i * nbf + ev_idx[j]];
 
@@ -274,122 +269,15 @@ void TinyDFT_MP2process(TinyDFT_p TinyDFT) {
   cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, nbf, nbf, n_vir, 1.0,
               Cvir_mat, n_vir, Cvir_mat, n_vir, 0.0, DC_mat, nbf);
   
-  //countx[0] means the number of elements larger than 1 and countx[1] means those larger than 0.1
-  int countx[8];
-  int county[8];
-  double maxx=0;
-  double maxy=0;
-  for(int  i=0;i<8;i++)
-  {
-    countx[i]=0;
-    county[i]=0;
-  }
-  double lgx,lgym2;
-  for (int j = 0; j < nbf; j++)
-    for (int i = 0; i < nbf; i++)
-    {
-      lgx=log10(fabs(D_mat[i*nbf+j]));
-      if(lgx>0)
-        countx[0]+=1;
-      else if(lgx < -6)
-        countx[7]+=1;
-      else
-      {
-        countx[(int)ceil(-lgx)]+=1;
-      }
-      if(fabs(D_mat[i*nbf+j])>maxx)
-        maxx=fabs(D_mat[i*nbf+j]);
-    }
-
-  for (int j = 0; j < nbf; j++)
-    for (int i = 0; i < nbf; i++)
-    {
-      lgym2=log10(fabs(DC_mat[i*nbf+j]))-2;
-      if(lgym2>0)
-        county[0]+=1;
-      else if(lgym2 < -6)
-        county[7]+=1;
-      else
-      {
-        county[(int)ceil(-lgym2)]+=1;
-      }
-      if(fabs(DC_mat[i*nbf+j])>maxy)
-        maxy=fabs(DC_mat[i*nbf+j]);
-    }
-  
-  printf("The number of elements in X and Y is %d\n", nbf*nbf);
-  int sumx=0;
-  for(int  i=0;i<8;i++)
-  {
-    printf("The number of elements in density matrix larger than 1e-%d is %d\n", i,countx[i]);
-    sumx+=countx[i];
-  }
-  int sumy=0;
-  for(int  i=0;i<8;i++)
-  {
-    printf("The number of elements in density complimentary matrix larger than 1e-%d is %d\n", i-2,county[i]);
-    sumy+=county[i];
-  }
-  printf("The total counted X and Y elements are %d and %d\n",sumx,sumy);
-  printf("The maximum absolute values of X and Y are %f and %f\n",maxx,maxy);
-  int usefulx3=0;
-  int usefuly3=0;
-  int usefulx2=0;
-  int usefuly2=0;
-  int usefulx4=0;
-  int usefuly4=0;
-  for (int j = 0; j < nbf; j++)
-    for (int i = 0; i < nbf; i++)
-    {
-            if(fabs(D_mat[i*nbf+j])>0.001*maxx)
-                usefulx3+=1;
-            if(fabs(DC_mat[i*nbf+j])>0.001*maxy)
-                usefuly3+=1;
-            if(fabs(D_mat[i*nbf+j])>0.01*maxx)
-                usefulx2+=1;
-            if(fabs(DC_mat[i*nbf+j])>0.01*maxy)
-                usefuly2+=1;
-            if(fabs(D_mat[i*nbf+j])>0.0001*maxx)
-                usefulx4+=1;
-            if(fabs(DC_mat[i*nbf+j])>0.0001*maxy)
-                usefuly4+=1;
-    }
-  printf("If we choose the elements larger than 0.01*maximum, the number of elements in Xdense and Ydense are%d and %d\n",usefulx2,usefuly2);
-  printf("If we choose the elements larger than 0.001*maximum, the number of elements in Xdense and Ydense are%d and %d\n",usefulx3,usefuly3);
-  printf("If we choose the elements larger than 0.0001*maximum, the number of elements in Xdense and Ydense are%d and %d\n",usefulx4,usefuly4);
-
-
-  for (int j = 0; j < nbf; j++)
-    for (int i = 0; i < nbf; i++)
-      D_mat[i * nbf + j] = D_mat[i * nbf + j] + DC_mat[i * nbf + j];
-
-  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-              D_mat, nbf, S_mat, nbf, 0.0, tmp_mat, nbf);
-  norm = Calcnorm(tmp_mat, nbf);
-  printf("The norm of (D+DC)*S is %f \n", norm);
-  printf("--------------------------------------------------\n");
-  printf("Test whether X*S*X is I\n");
-  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-              TinyDFT->X_mat, nbf, TinyDFT->S_mat, nbf, 0.0, TinyDFT->tmp_mat,
-              nbf);
-
-  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-              TinyDFT->tmp_mat, nbf, TinyDFT->X_mat, nbf, 0.0, TinyDFT->D_mat,
-              nbf);
-
-  norm = Calcnorm(D_mat, nbf);
-  printf("The norm of XSX is %f\n", norm);
-//  printf("--------------------------------------------------\n");
-//  printf("The eigenvalues of S matrix are\n");
-
 }
 
 
-TinyDFT_build_energyweightedDDC(TinyDFT_p TinyDFT, const double *Cocc_mat, const double *Cvir_mat, const double *orbitenergy_array, double *D_mat, double *DC_mat, double Fermie, double talpha)
+void TinyDFT_build_energyweightedDDC(TinyDFT_p TinyDFT, const double *Cocc_mat, const double *Cvir_mat, const double *orbitenergy_array, double *D_mat, double *DC_mat, double Fermie, double talpha)
 {
   int nbf = TinyDFT->nbf;
   int n_occ=TinyDFT->n_occ;
   int n_vir=TinyDFT->n_vir;
+  //energy difference
   double edif;
   double tmp_factor;
   //Initialize all the values in X(D) and Y(DC)

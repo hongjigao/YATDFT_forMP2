@@ -89,7 +89,7 @@ void TinyDFT_build_Hcore_S_X_mat(TinyDFT_p TinyDFT, double *Hcore_mat, double *S
         1.0, U0_mat, nbf, U_mat, nbf, 0.0, X_mat, nbf
     );
     free(workbuf);
-    TinyDFT->n_null=nbf-cnt;
+//    TinyDFT->n_null=nbf-cnt;
 
 }
 

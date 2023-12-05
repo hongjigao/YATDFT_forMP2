@@ -237,109 +237,68 @@ void testddcmat(TinyDFT_p TinyDFT)
 //    double *X_mat = TinyDFT->X_mat;
     double *tmp_mat=TinyDFT->tmp_mat;
     int nbf = TinyDFT -> nbf;
-    int countx[8];
-    int county[8];
-    double maxx=0;
-    double maxy=0;
-    for(int  i=0;i<8;i++)
+    double maxv=0;
+    int larger1e5=0;
+    int larger1e9=0;
+    int larger1e2=0;
+    int lg0tst=0;
+//    printf("%d\n",lg0tst);
+    for(int i=0;i<nbf*nbf;i++)
     {
-        countx[i]=0;
-        county[i]=0;
+        if(fabs(D_mat[i])>maxv)
+        {
+            maxv=fabs(D_mat[i]);
+        }
     }
-    double lgx,lgym2;
-    for (int j = 0; j < nbf; j++)
-        for (int i = 0; i < nbf; i++)
-        {
-        lgx=log10(fabs(D_mat[i*nbf+j]));
-        if(lgx>0)
-            countx[0]+=1;
-        else if(lgx < -6)
-            countx[7]+=1;
-        else
-        {
-            countx[(int)ceil(-lgx)]+=1;
-        }
-        if(fabs(D_mat[i*nbf+j])>maxx)
-            maxx=fabs(D_mat[i*nbf+j]);
-        }
 
-    for (int j = 0; j < nbf; j++)
-        for (int i = 0; i < nbf; i++)
-        {
-        lgym2=log10(fabs(DC_mat[i*nbf+j]))-2;
-        if(lgym2>0)
-            county[0]+=1;
-        else if(lgym2 < -6)
-            county[7]+=1;
-        else
-        {
-            county[(int)ceil(-lgym2)]+=1;
-        }
-        if(fabs(DC_mat[i*nbf+j])>maxy)
-            maxy=fabs(DC_mat[i*nbf+j]);
-        }
-    int usefulx3=0;
-    int usefuly3=0;
-    int usefulx2=0;
-    int usefuly2=0;
-    int usefulx4=0;
-    int usefuly4=0;
-    for (int j = 0; j < nbf; j++)
-        for (int i = 0; i < nbf; i++)
-        {
-            if(fabs(D_mat[i*nbf+j])>0.001*maxx)
-                usefulx3+=1;
-            if(fabs(DC_mat[i*nbf+j])>0.001*maxy)
-                usefuly3+=1;
-            if(fabs(D_mat[i*nbf+j])>0.01*maxx)
-                usefulx2+=1;
-            if(fabs(DC_mat[i*nbf+j])>0.01*maxy)
-                usefuly2+=1;
-            if(fabs(D_mat[i*nbf+j])>0.0001*maxx)
-                usefulx4+=1;
-            if(fabs(DC_mat[i*nbf+j])>0.0001*maxy)
-                usefuly4+=1;
-        }
-    printf("The number of elements in X and Y is %d\n", nbf*nbf);
-    int sumx=0;
-    for(int  i=0;i<8;i++)
+    printf("The max value of D is %e\n",maxv);
+ 
+    for(size_t i=0;i<nbf*nbf;i++)
     {
-        printf("The number of elements in density matrix larger than 1e-%d is %d\n", i,countx[i]);
-        sumx+=countx[i];
+        if(fabs(D_mat[i])>maxv*1e-2)
+            larger1e2+=1;
+        if(fabs(D_mat[i])>=maxv*1e-5)
+            larger1e5+=1;
+        if(fabs(D_mat[i])>maxv*1e-9)
+            larger1e9+=1;
+        if(fabs(D_mat[i])>0)
+            lg0tst+=1;
+
     }
-    int sumy=0;
-    for(int  i=0;i<8;i++)
+    printf("The number of values in D larger than 1e-2,1e-5 and 1e-9 are respectively %d,%d,%d\n",larger1e2,larger1e5,larger1e9);
+    printf("The number of elements in D is %d\n",lg0tst);
+
+
+    maxv=0;
+    larger1e5=0;
+    larger1e9=0;
+    larger1e2=0;
+    lg0tst=0;
+//    printf("%d\n",lg0tst);
+    for(int i=0;i<nbf*nbf;i++)
     {
-        printf("The number of elements in density complimentary matrix larger than 1e-%d is %d\n", i-2,county[i]);
-        sumy+=county[i];
+        if(fabs(DC_mat[i])>maxv)
+        {
+            maxv=fabs(DC_mat[i]);
+        }
     }
-    printf("The total counted X and Y elements are %d and %d\n",sumx,sumy);
-    printf("The maximum absolute values of X and Y are %f and %f\n",maxx,maxy);
-    printf("If we choose the elements larger than 0.01*maximum, the number of elements in Xdense and Ydense are%d and %d\n",usefulx2,usefuly2);
-    printf("If we choose the elements larger than 0.001*maximum, the number of elements in Xdense and Ydense are%d and %d\n",usefulx3,usefuly3);
-    printf("If we choose the elements larger than 0.0001*maximum, the number of elements in Xdense and Ydense are%d and %d\n",usefulx4,usefuly4);
 
+    printf("The max value of DC is %e\n",maxv);
+ 
+    for(size_t i=0;i<nbf*nbf;i++)
+    {
+        if(fabs(DC_mat[i])>maxv*1e-2)
+            larger1e2+=1;
+        if(fabs(DC_mat[i])>=maxv*1e-5)
+            larger1e5+=1;
+        if(fabs(DC_mat[i])>maxv*1e-9)
+            larger1e9+=1;
+        if(fabs(DC_mat[i])>0)
+            lg0tst+=1;
 
-    for (int j = 0; j < nbf; j++)
-        for (int i = 0; i < nbf; i++)
-        D_mat[i * nbf + j] = D_mat[i * nbf + j] + DC_mat[i * nbf + j];
-    double norm;
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-                D_mat, nbf, S_mat, nbf, 0.0, tmp_mat, nbf);
-    norm = Calc2norm(tmp_mat, nbf);
-    printf("The norm of (D+DC)*S is %f \n", norm);
-    printf("--------------------------------------------------\n");
-    printf("Test whether X*S*X is I\n");
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-                TinyDFT->X_mat, nbf, TinyDFT->S_mat, nbf, 0.0, TinyDFT->tmp_mat,
-                nbf);
-
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-                TinyDFT->tmp_mat, nbf, TinyDFT->X_mat, nbf, 0.0, TinyDFT->D_mat,
-                nbf);
-
-    norm = Calc2norm(D_mat, nbf);
-    printf("The norm of XSX is %f\n", norm);
+    }
+    printf("The number of values in DC larger than 1e-2,1e-5 and 1e-9 are respectively %d,%d,%d\n",larger1e2,larger1e5,larger1e9);
+    printf("The number of elements in DC is %d\n",lg0tst);
 }
 
 int main(int argc, char **argv)
@@ -351,7 +310,6 @@ int main(int argc, char **argv)
     }
     
     double st, et;
-    
     int niter, J_op, K_op, use_DF = 0;
     niter = atoi(argv[3]);
     J_op  = atoi(argv[4]);
@@ -425,112 +383,56 @@ int main(int argc, char **argv)
     // Calculate Density matrix and its complimentary and factor matrices and energy array.
     printf("    basis set       = %s\n", TinyDFT->bas_name);
     printf("    molecule        = %s\n", TinyDFT->mol_name);
-    //TinyDFT_MP2nox(TinyDFT);
+//    TinyDFT_MP2nox(TinyDFT);
     TinyDFT_build_MP2info_eig(TinyDFT, TinyDFT->F_mat,
                                TinyDFT->X_mat, TinyDFT->D_mat,
                                TinyDFT->Cocc_mat, TinyDFT->DC_mat,
                                TinyDFT->Cvir_mat, TinyDFT->orbitenergy_array);
     double Fermie = 0;
-    double talpha = 0;
+//    double talpha = 1;
+    int nbf=TinyDFT->nbf;
+    double talpha=2;
+    printf("For talpha is %f\n",talpha);
     TinyDFT_build_energyweightedDDC(TinyDFT, TinyDFT->Cocc_mat,TinyDFT->Cvir_mat,TinyDFT->orbitenergy_array,TinyDFT->D_mat,TinyDFT->DC_mat,Fermie,talpha);
-    //testddcmat(TinyDFT);
-    printf("Test trace and zero properties of DDC");
-    int nbf = TinyDFT->nbf;
-    double summm=0;
-    printf("\nOcc e^(ei*talpha)\n");
-    for(int i=0;i<TinyDFT->n_occ;i++)
+        
+    double normd=0;
+    double normdc=0;
+    normd=Calc2norm(TinyDFT->D_mat,nbf);
+    normdc=Calc2norm(TinyDFT->DC_mat,nbf);
+    printf("The norm of D is %f\n",normd);
+    printf("The norm of DC is %f\n",normdc);
+    testddcmat(TinyDFT);
+    normd=Calc2norm(TinyDFT->S_mat,nbf);
+    normdc=Calc2norm(TinyDFT->X_mat,nbf);
+    printf("The norm of S is %f\n",normd);
+    printf("The norm of X is %f\n",normdc);
+    normd=Calc2norm(TinyDFT->F_mat,nbf);
+    printf("The norm of F is %f\n",normd);
+    normd=0;
+    normdc=0;
+    for(int i=0;i<nbf*TinyDFT->n_occ;i++)
     {
-       printf("%f ",exp(TinyDFT->orbitenergy_array[i]*talpha));
-        summm+=exp(TinyDFT->orbitenergy_array[i]*talpha);
+        normd+=TinyDFT->Cocc_mat[i]*TinyDFT->Cocc_mat[i];
     }
-    printf("\nVir e^-(ei*talpha)\n");
-    for(int i=TinyDFT->n_occ;i<TinyDFT->nbf;i++)
+    printf("The norm of OCC is %f\n",normd);
+    for(int i=0;i<nbf*TinyDFT->n_vir;i++)
     {
-        printf("%f ",exp(-TinyDFT->orbitenergy_array[i]*talpha));
-        summm+=exp(-TinyDFT->orbitenergy_array[i]*talpha);
+        normdc+=TinyDFT->Cvir_mat[i]*TinyDFT->Cvir_mat[i];
     }
-    printf("\nThe list of energy is\n");
-    int nl0=0;
-    for(int i=0; i<nbf; i++)
-    {
-        printf(" %f ",TinyDFT->orbitenergy_array[i]);
-        if(TinyDFT->orbitenergy_array[i]>0)
-            nl0+=1;
-    }
-    printf("The virtual orbitals should be %d", nl0);
-    printf("\n The trace of it is %f\n",summm);
-    for(int i=0;i<nbf;i++)
-        for(int j=0;j<nbf;j++)
-        {
-            TinyDFT->tmp_mat[i*nbf+j]=TinyDFT->D_mat[i*nbf+j]+TinyDFT->DC_mat[i*nbf+j];
-        }
-    printf("\nDiagonal information of (X+Y)S, it should be I_exp\n");
-    double *productmat;
-    productmat = (double*) malloc_aligned(sizeof(double) * nbf * nbf,    64);
-    memset(productmat,  0, sizeof(double) * nbf * nbf);
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-              TinyDFT->S_mat, nbf, TinyDFT->tmp_mat, nbf, 0.0, productmat, nbf);
+    printf("The norm of vir is %f\n",normdc);
+    double *eigval=(double *)malloc(sizeof(double) * nbf);;
+
+    LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', nbf, TinyDFT->X_mat, nbf, eigval);
     for(int i=0;i<nbf;i++)
     {
-        double tpvl=productmat[i*nbf+i];
-        printf("%f ",tpvl);
-    }
-    double norm=0;
-    norm = Calc2norm(productmat,nbf);
-    printf("\nThe norm of (P+Q)*S is %f\n,it should be equal to %f\n",norm,summm);
-    norm = 0;
-    for(int i=0;i<nbf;i++)
-    {
-        norm+=productmat[i*nbf+i];
-    }
-    printf("The diagonal trace is %f\n",norm);
-    printf("Now test XSY\n");
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-              TinyDFT->D_mat, nbf, TinyDFT->S_mat, nbf, 0.0, TinyDFT->tmp_mat, nbf);
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-              TinyDFT->tmp_mat, nbf, TinyDFT->DC_mat, nbf, 0.0, productmat, nbf);
-
-    norm=Calc2norm(productmat,nbf);
-    printf("\nThe norm pf XSY is %f, it should be zero\n",norm);
-
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, nbf, nbf, nbf, 1.0,
-              TinyDFT->X_mat, nbf, TinyDFT->X_mat, nbf, 0.0, productmat, nbf);
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-              TinyDFT->S_mat, nbf, productmat, nbf, 0.0, TinyDFT->tmp_mat, nbf);
-    //printf("\nThe norm is %f, it should be zero\n",norm);
-    double snorm = Calc2norm(TinyDFT->tmp_mat,nbf);
-    printf("The Frob norm of XXTS is %f\n",snorm);
-    snorm = Calc2norm(productmat,nbf);
-    printf("The Frob norm of XXT is %f\n",snorm);
-    snorm = Calc2norm(TinyDFT->S_mat,nbf);
-    printf("The Frob norm of S is %f\n",snorm);
-    printf("The eigval of Smat is \n");
-    memcpy(productmat, TinyDFT->S_mat, sizeof(double) * nbf*nbf);
-
-  // Diagonalize F = C0^T * epsilon * C0, and C = X * C0
-  // [C0, E] = eig(F1), now C0 is stored in tmp_mat
-  LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', nbf, productmat, nbf,
-                TinyDFT->eigval);
-    for(int j=0;j<nbf;j++)
-    {
-        printf(" %f ",TinyDFT->eigval[j]);
+        printf("%f ",eigval[i]);
     }
 
-    memcpy(productmat, TinyDFT->X_mat, sizeof(double) * nbf*nbf);
-    printf("\nThe eigval of Xmat is \n");
-  // Diagonalize F = C0^T * epsilon * C0, and C = X * C0
-  // [C0, E] = eig(F1), now C0 is stored in tmp_mat
-  LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', nbf, productmat, nbf,
-                TinyDFT->eigval);
-    for(int j=0;j<nbf*nbf;j++)
-    {
-        printf(" %f ",TinyDFT->S_mat[j]);
-    }
 
+    
 //    TinyDFT_MP2noxtest(TinyDFT);
 
     // Free TinyDFT and H2P-ERI
     TinyDFT_destroy(&TinyDFT);
-    free(productmat);
     return 0;
 }

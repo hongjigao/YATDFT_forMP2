@@ -1,7 +1,7 @@
+SIMINT_INSTALL_DIR   = /gpfs/projects/JiaoGroup/hongjigao/gccmp2test/simint/build-avx512/install
 LIBXC_INSTALL_DIR    = /home/mkurisu/Workspace/libxc/install
-SIMINT_INSTALL_DIR   = /gpfs/projects/JiaoGroup/hongjigao/simint/build-avx512/install
-YATDFT_INSTALL_DIR   = /gpfs/projects/JiaoGroup/hongjigao/YATDFT_forMP2
 OPENBLAS_INSTALL_DIR = /gpfs/software/openblas/0.3.21/
+YATDFT_INSTALL_DIR   = /gpfs/projects/JiaoGroup/hongjigao/gccmp2test/YATDFT_forMP2
 
 DEFS    = 
 INCS    = -I$(YATDFT_INSTALL_DIR)/include -I$(SIMINT_INSTALL_DIR)/include

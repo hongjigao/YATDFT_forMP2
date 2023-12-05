@@ -23,7 +23,7 @@ struct TinyDFT_struct
     int    nbf;             // Number of basis functions (BFs)
     int    n_occ;           // Number of occupied orbits
     int    n_vir;           // Added: Number of virtual orbits
-    int    n_null;          // Added: Useless orbits, nbf=n_occ+n_vir+n_null
+//    int    n_null;          // Added: Useless orbits, nbf=n_occ+n_vir+n_null
     int    charge;          // Charge of molecule
     int    electron;        // Number of electrons
     int    num_total_sp;    // Number of total shell pairs (== nshell * nshell)

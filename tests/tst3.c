@@ -24,11 +24,11 @@ void save_mat_to_file(
     printf("Binary file %s output finished\n", ouf_name);
 }
 
-double Calc2norm(const double *mat, int siz) {
+double Calc2norm(const double *mat, int siz1, int siz2) {
   double norms = 0;
-  for (int i = 0; i < siz; i++)
-    for (int j = 0; j < siz; j++) {
-      norms = norms + mat[i * siz + j] * mat[i * siz + j];
+  for (int i = 0; i < siz1; i++)
+    for (int j = 0; j < siz2; j++) {
+      norms = norms + mat[i * siz2 + j] * mat[i * siz2 + j];
     }
 
   return norms;
@@ -326,7 +326,7 @@ void testddcmat(TinyDFT_p TinyDFT)
     double norm;
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
                 D_mat, nbf, S_mat, nbf, 0.0, tmp_mat, nbf);
-    norm = Calc2norm(tmp_mat, nbf);
+    norm = Calc2norm(tmp_mat, nbf,nbf);
     printf("The norm of (D+DC)*S is %f \n", norm);
     printf("--------------------------------------------------\n");
     printf("Test whether X*S*X is I\n");
@@ -338,7 +338,7 @@ void testddcmat(TinyDFT_p TinyDFT)
                 TinyDFT->tmp_mat, nbf, TinyDFT->X_mat, nbf, 0.0, TinyDFT->D_mat,
                 nbf);
 
-    norm = Calc2norm(D_mat, nbf);
+    norm = Calc2norm(D_mat, nbf,nbf);
     printf("The norm of XSX is %f\n", norm);
 }
 
@@ -419,13 +419,23 @@ int main(int argc, char **argv)
         et = get_wtime_sec();
         printf("TinyDFT set up XC integral over, elapsed time = %.3lf (s)\n", et - st);
     }
-    
+    int nbf = TinyDFT->nbf;
     // Do SCF calculation
     TinyDFT_SCF(TinyDFT, niter, J_op, K_op);
     // Calculate Density matrix and its complimentary and factor matrices and energy array.
     printf("    basis set       = %s\n", TinyDFT->bas_name);
     printf("    molecule        = %s\n", TinyDFT->mol_name);
-    //TinyDFT_MP2nox(TinyDFT);
+    TinyDFT_MP2nox(TinyDFT);
+    printf("When we don't add the X product and use the orthogonal Cocc and Cvir\n");
+    double nm=0;
+    nm=Calc2norm(TinyDFT->D_mat,nbf,nbf);
+    printf("The norm square of P' matrix is %f\n",nm);
+    nm=Calc2norm(TinyDFT->DC_mat,nbf,nbf);
+    printf("The norm square of Q' matrix is %f\n",nm);
+    nm=Calc2norm(TinyDFT->Cocc_mat,nbf,TinyDFT->n_occ);
+    printf("The norm square of Cocc' matrix is %f\n",nm);
+    nm=Calc2norm(TinyDFT->Cvir_mat,nbf,TinyDFT->n_vir);
+    printf("The norm square of Cvir' matrix is %f\n",nm);
     TinyDFT_build_MP2info_eig(TinyDFT, TinyDFT->F_mat,
                                TinyDFT->X_mat, TinyDFT->D_mat,
                                TinyDFT->Cocc_mat, TinyDFT->DC_mat,
@@ -434,77 +444,32 @@ int main(int argc, char **argv)
     double talpha = 0;
     TinyDFT_build_energyweightedDDC(TinyDFT, TinyDFT->Cocc_mat,TinyDFT->Cvir_mat,TinyDFT->orbitenergy_array,TinyDFT->D_mat,TinyDFT->DC_mat,Fermie,talpha);
     //testddcmat(TinyDFT);
-    printf("Test trace and zero properties of DDC");
-    int nbf = TinyDFT->nbf;
-    double summm=0;
-    printf("\nOcc e^(ei*talpha)\n");
-    for(int i=0;i<TinyDFT->n_occ;i++)
-    {
-       printf("%f ",exp(TinyDFT->orbitenergy_array[i]*talpha));
-        summm+=exp(TinyDFT->orbitenergy_array[i]*talpha);
-    }
-    printf("\nVir e^-(ei*talpha)\n");
-    for(int i=TinyDFT->n_occ;i<TinyDFT->nbf;i++)
-    {
-        printf("%f ",exp(-TinyDFT->orbitenergy_array[i]*talpha));
-        summm+=exp(-TinyDFT->orbitenergy_array[i]*talpha);
-    }
-    printf("\nThe list of energy is\n");
-    int nl0=0;
-    for(int i=0; i<nbf; i++)
-    {
-        printf(" %f ",TinyDFT->orbitenergy_array[i]);
-        if(TinyDFT->orbitenergy_array[i]>0)
-            nl0+=1;
-    }
-    printf("The virtual orbitals should be %d", nl0);
-    printf("\n The trace of it is %f\n",summm);
-    for(int i=0;i<nbf;i++)
-        for(int j=0;j<nbf;j++)
-        {
-            TinyDFT->tmp_mat[i*nbf+j]=TinyDFT->D_mat[i*nbf+j]+TinyDFT->DC_mat[i*nbf+j];
-        }
-    printf("\nDiagonal information of (X+Y)S, it should be I_exp\n");
+    printf("When we add X product, P=XP'X^T, Q=XQ'X^T\n");
+    nm=Calc2norm(TinyDFT->D_mat,nbf,nbf);
+    printf("The norm square of P matrix is %f\n",nm);
+    nm=Calc2norm(TinyDFT->DC_mat,nbf,nbf);
+    printf("The norm square of Q matrix is %f\n",nm);
     double *productmat;
     productmat = (double*) malloc_aligned(sizeof(double) * nbf * nbf,    64);
     memset(productmat,  0, sizeof(double) * nbf * nbf);
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-              TinyDFT->S_mat, nbf, TinyDFT->tmp_mat, nbf, 0.0, productmat, nbf);
-    for(int i=0;i<nbf;i++)
-    {
-        double tpvl=productmat[i*nbf+i];
-        printf("%f ",tpvl);
-    }
-    double norm=0;
-    norm = Calc2norm(productmat,nbf);
-    printf("\nThe norm of (P+Q)*S is %f\n,it should be equal to %f\n",norm,summm);
-    norm = 0;
-    for(int i=0;i<nbf;i++)
-    {
-        norm+=productmat[i*nbf+i];
-    }
-    printf("The diagonal trace is %f\n",norm);
-    printf("Now test XSY\n");
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-              TinyDFT->D_mat, nbf, TinyDFT->S_mat, nbf, 0.0, TinyDFT->tmp_mat, nbf);
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
-              TinyDFT->tmp_mat, nbf, TinyDFT->DC_mat, nbf, 0.0, productmat, nbf);
-
-    norm=Calc2norm(productmat,nbf);
-    printf("\nThe norm pf XSY is %f, it should be zero\n",norm);
-
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, nbf, nbf, nbf, 1.0,
               TinyDFT->X_mat, nbf, TinyDFT->X_mat, nbf, 0.0, productmat, nbf);
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nbf, nbf, nbf, 1.0,
               TinyDFT->S_mat, nbf, productmat, nbf, 0.0, TinyDFT->tmp_mat, nbf);
     //printf("\nThe norm is %f, it should be zero\n",norm);
-    double snorm = Calc2norm(TinyDFT->tmp_mat,nbf);
-    printf("The Frob norm of XXTS is %f\n",snorm);
-    snorm = Calc2norm(productmat,nbf);
-    printf("The Frob norm of XXT is %f\n",snorm);
-    snorm = Calc2norm(TinyDFT->S_mat,nbf);
-    printf("The Frob norm of S is %f\n",snorm);
-    printf("The eigval of Smat is \n");
+    double snorm = Calc2norm(TinyDFT->tmp_mat,nbf,nbf);
+    printf("The Frob norm square of XXTS is %f\n",snorm);
+    snorm = Calc2norm(productmat,nbf,nbf);
+    printf("The Frob norm square of  XXT is %f\n",snorm);
+    snorm = Calc2norm(TinyDFT->S_mat,nbf,nbf);
+    printf("The Frob norm square of S is %f\n",snorm);
+    snorm = Calc2norm(TinyDFT->X_mat,nbf,nbf);
+    printf("The Frob norm square of X is %f\n",snorm);
+    snorm = Calc2norm(TinyDFT->Cocc_mat,nbf,TinyDFT->n_occ);
+    printf("The Frob norm square of C_occ is %f\n",snorm);
+    snorm = Calc2norm(TinyDFT->X_mat,nbf,TinyDFT->n_vir);
+    printf("The Frob norm square of C_vir is %f\n",snorm);
+    printf("The S is \n");
     memcpy(productmat, TinyDFT->S_mat, sizeof(double) * nbf*nbf);
 
   // Diagonalize F = C0^T * epsilon * C0, and C = X * C0
@@ -513,19 +478,19 @@ int main(int argc, char **argv)
                 TinyDFT->eigval);
     for(int j=0;j<nbf;j++)
     {
-        printf(" %f ",TinyDFT->eigval[j]);
+//        printf("\nThe %d th column of orbital energy %f\n",j,TinyDFT->orbitenergy_array[j]);
+    
+        for(int i=0;i<nbf;i++)
+        {
+            printf(" %f ",TinyDFT->S_mat[i*nbf+j]);
+        }
     }
 
     memcpy(productmat, TinyDFT->X_mat, sizeof(double) * nbf*nbf);
     printf("\nThe eigval of Xmat is \n");
   // Diagonalize F = C0^T * epsilon * C0, and C = X * C0
   // [C0, E] = eig(F1), now C0 is stored in tmp_mat
-  LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', nbf, productmat, nbf,
-                TinyDFT->eigval);
-    for(int j=0;j<nbf*nbf;j++)
-    {
-        printf(" %f ",TinyDFT->S_mat[j]);
-    }
+
 
 //    TinyDFT_MP2noxtest(TinyDFT);
 
